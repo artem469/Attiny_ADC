@@ -1,20 +1,52 @@
 
 #include <avr/io.h>
-
+#include <util/delay.h>
+#include <stdlib.h>
 #include "adc.h"
+#include "usiserialsend.h"
 
 float U1;
 float U2;
 float current;
 
 
-float getU() {
-	return (float) U1 * 0.0048828;;
+char string[16];
+
+
+
+static float getU() {
+	return (float) getADC(0) * 0.0048828;
 }
 
-float getCurrent() {
-	  return current;
+static float getCurrent() {
+	  return getADC(1);;
 }
+
+void uartTx()
+  {
+		usiserial_send_byte(!111);
+		while (1)
+		{
+			ADCSRA |= (1 << ADSC);        	// start ADC measurement
+			while (ADCSRA & (1 << ADSC) ); 	// wait till conversion complete
+
+			itoa(getU(), string, 16);
+			uint8_t len = sizeof(string)-1;
+
+			usiserial_send_byte(!111);
+			for (uint8_t i = 0; i<len; i++)
+			{
+				while (!usiserial_send_available())
+              {
+                  // Wait for last send to complete
+              }
+				  usiserial_send_byte(string[i]);
+				  // usiserial_send_byte(13);
+				  // usiserial_send_byte(10);
+			}
+            _delay_ms(500);
+      }
+  }
 
 void initADC() {
 	 /*
@@ -55,9 +87,13 @@ float getADC(bool adcNum) {
 				(1 << MUX1)  |     // use ADC3 for input (PB3), MUX bit 1
 				(1 << MUX0);       // use ADC3 for input (PB3), MUX bit 0
 	  }
-
 	      	  ADCSRA |= (1 << ADSC);        	// start ADC measurement
 	      	  while (ADCSRA & (1 << ADSC) ); 	// wait till conversion complete
 
 	  return ADCW;
+}
+
+void newLine() {
+	usiserial_send_byte(13);
+	usiserial_send_byte(10);
 }
